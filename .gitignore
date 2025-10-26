@@ -1,0 +1,78 @@
+# =====================
+# CMake / C++ / Build
+# =====================
+
+# Build directories
+/build/
+/cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+*.cmake
+*.a
+*.so
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.log
+
+# IDE / editors
+.vscode/
+.idea/
+*.user
+*.suo
+*.swp
+*.DS_Store
+
+# =====================
+# Python
+# =====================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# PyInstaller
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# pytest / coverage
+htmlcov/
+.coverage
+.cache
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# IDE / editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log

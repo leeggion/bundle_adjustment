@@ -11,6 +11,8 @@ include_directories(${OpenCV_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} include)
 
 add_executable(bundle
     src/main.cpp
+    src/utilities/DatasetLoader.cpp
+    src/utilities/math.cpp
 )
 
 target_link_libraries(bundle ${OpenCV_LIBS})

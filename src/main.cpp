@@ -3,19 +3,23 @@
  * @brief Main file for the program
  * @description Сейчас чистый прототип, что примерно будет
  */
-#include "ba/dataset_loader.h"
-#include "ba/gauss_newton.h"
-#include "ba/levenberg_marquardt.h"
 
-int main() {
-    DatasetLoader loader("data/");
-    auto [cameras, points, observations] = loader.load();
+#include "utilities/DatasetLoader.hpp"
+#include "utilities/Structs.hpp"
+#include "utilities/math.hpp"
 
-    GaussNewtonOptimizer gn;
-    gn.optimize(cameras, points, observations);
-
-    LevenbergMarquardtOptimizer lm;
-    lm.optimize(cameras, points, observations);
-
+int main(int argc, char* argv[]) {
+    if (argc == 1) {
+        std::cout << "No arguments provided\n";
+        return 1;
+    }
+    std::string dataset_path = argv[1];
+    DatasetLoader loader(dataset_path);
+    if (loader.load())
+        std::cout << "Dataset loaded without problems\n";
+    else {
+        std::cout << "Dataset was not loaded\n";
+        return 0;
+    }
     return 0;
 }

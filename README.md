@@ -25,5 +25,9 @@ sudo apt install -y libopencv-dev
 mkdir build && cd build
 cmake ..
 cmake --build .
-./bundle
+```
+Запуск:
+```
+./bundle <path-to-dataset[BAL]
+# пример ./bundle ../data/ladybug.txt 
 ```

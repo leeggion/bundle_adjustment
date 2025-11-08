@@ -54,6 +54,11 @@ int main(int argc, char* argv[]) {
     std::ofstream fout("optimized_points.txt");
     for (const auto& p : points) fout << p.pos.transpose() << "\n";
 
+    std::ofstream fcams("optimized_cameras.txt");
+    for (const auto& c : cams)
+        fcams << c.rotation.transpose() << " " << c.translation.transpose()
+              << " " << c.f << " " << c.k1 << " " << c.k2 << "\n";
+
     std::cout << "Optimization finished!" << std::endl;
     return 0;
 }

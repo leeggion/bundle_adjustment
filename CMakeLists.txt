@@ -19,6 +19,7 @@ add_executable(bundle
     src/main.cpp
     src/utilities/DatasetLoader.cpp
     src/utilities/math.cpp
+    src/utilities/Visualize.cpp
 )
 
 target_link_libraries(

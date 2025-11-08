@@ -6,6 +6,7 @@
 
 #include "utilities/DatasetLoader.hpp"
 #include "utilities/Structs.hpp"
+#include "utilities/Visualize.hpp"
 #include "utilities/math.hpp"
 
 int main(int argc, char* argv[]) {
@@ -60,6 +61,10 @@ int main(int argc, char* argv[]) {
               << " " << c.f << " " << c.k1 << " " << c.k2 << "\n";
 
     std::cout << "Optimization finished!" << std::endl;
+
+    int cams_to_see = std::min((size_t)10, loader.get_cams().size());
+    for (size_t i = 0; i < cams_to_see; ++i)
+        visualize_reprojection(cams, points, obs, i);
     return 0;
 }
 

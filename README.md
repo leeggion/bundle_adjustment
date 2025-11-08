@@ -20,6 +20,10 @@ sudo apt update
 sudo apt install -y libeigen3-dev
 sudo apt install -y libopencv-dev
 ```
+_temporary_
+```
+sudo apt-get install libceres-dev
+```
 Сборка: (прототип)
 ```
 mkdir build && cd build

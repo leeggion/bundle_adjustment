@@ -11,7 +11,7 @@
 
 class DatasetLoader {
    public:
-    DatasetLoader(std::string) noexcept;
+    explicit DatasetLoader(std::string) noexcept;
     ~DatasetLoader() = default;
     auto load() noexcept -> bool;
     auto get_path() noexcept -> std::string { return path; }

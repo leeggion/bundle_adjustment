@@ -17,6 +17,8 @@ struct Camera {
 
 struct Point3D {
     Eigen::Vector3d pos;
+    Point3D() = default;
+    explicit Point3D(Eigen::Vector3d vec) { pos = vec; }
 };
 
 #endif /* _t33nsy_STRUCTS */

@@ -21,5 +21,13 @@ int main(int argc, char* argv[]) {
         std::cout << "Dataset was not loaded\n";
         return 0;
     }
+    Camera cam1 = loader.get_cams()[0];
+    Point3D point1 = loader.get_points()[0];
+    Observation obs1 = loader.get_observations()[0];
+    auto proj1 = projection(cam1, point1);
+    std::cout << "Test projection function on first:\n";
+    std::cout << proj1[0] << " " << proj1[1] << "\n";
+    std::cout << obs1.cam_id << " " << obs1.point_id << " " << obs1.u << " "
+              << obs1.v << "\n";
     return 0;
 }

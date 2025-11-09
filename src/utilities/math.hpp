@@ -47,4 +47,6 @@ struct BALReprojectionError {
     double observed_x, observed_y;
 };
 
+void evaluate_autodiff(const Camera& cam, const Point3D& pt, double u,
+                       double v);
 #endif /* _t33nsy_MATH */

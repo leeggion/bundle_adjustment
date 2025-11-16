@@ -283,22 +283,60 @@ int main(int argc, char** argv) {
         Mat zB = Rs[camB] * Pw + Ts[camB];
         if (zA.at<double>(2, 0) <= 0 || zB.at<double>(2, 0) <= 0) continue;
 
-        // store point & all observations for this track (we'll include all
-        // images in track for obs)
-        int pt_idx = (int)points3d.size();
-        points3d.push_back(P3);
-        observations_for_point.emplace_back();
+        // ... (после проверки на cheirality)
+        if (zA.at<double>(2, 0) <= 0 || zB.at<double>(2, 0) <= 0) continue;
+
+        // НОВОЕ: Проверка ошибки репроекции
+        const double MAX_REPROJ_ERROR = 5.0;  // Макс. ошибка в пикселях
+        vector<pair<int, Point2d>> current_observations;
+        bool point_is_good = true;
+        Mat P_world_h = (Mat_<double>(4, 1) << P3.x, P3.y, P3.z, 1.0);
+
+        // Проверяем ошибку для КАЖДОГО наблюдения в треке
         for (auto& obs : track) {
             int cam = obs.first, kp = obs.second;
-            Point2f p = feats[cam].kps[kp].pt;
-            // convert to BAL image coords: origin center, y upward
-            double x_bal = p.x - img_size.width / 2.0;
-            double y_bal = -(p.y - img_size.height / 2.0);
-            observations_for_point.back().push_back(
-                {cam, Point2d(x_bal, y_bal)});
+            Point2f p_obs =
+                feats[cam].kps[kp].pt;  // Наблюдаемая 2D точка (OpenCV)
+
+            // Проекция 3D точки P3 в камеру 'cam'
+            Mat p_proj_h = Pmats[cam] * P_world_h;  // 3x1
+            double w = p_proj_h.at<double>(2, 0);
+
+            if (fabs(w) < 1e-8) {  // Точка на бесконечности или за камерой
+                point_is_good = false;
+                break;
+            }
+
+            // Спроецированная 2D точка (OpenCV)
+            Point2f p_proj(p_proj_h.at<double>(0, 0) / w,
+                           p_proj_h.at<double>(1, 0) / w);
+
+            // Вычисление ошибки репроекции
+            double error = norm(p_proj - p_obs);
+
+            if (error > MAX_REPROJ_ERROR) {
+                point_is_good = false;
+                break;  // Если ошибка велика, отбрасываем всю 3D-точку
+            }
+
+            // Если ошибка в норме, готовим наблюдение для BAL
+            // (Используем исправления из предыдущего ответа: X-left, Y-up)
+            double x_bal = -(p_obs.x - img_size.width / 2.0);
+            double y_bal = -(p_obs.y - img_size.height / 2.0);
+            current_observations.push_back({cam, Point2d(x_bal, y_bal)});
         }
-    }
-    cout << "Triangulated points: " << points3d.size() << "\n";
+
+        // Сохраняем точку и все ее наблюдения, только если она прошла
+        // проверку на ошибку репроекции во ВСЕХ видах.
+        if (point_is_good) {
+            points3d.push_back(P3);
+            observations_for_point.push_back(current_observations);
+        }
+    }  // Конец цикла for (auto& track : tracks)
+
+    // Обновим вывод
+    cout << "Triangulated points (after reproj. filter): " << points3d.size()
+         << "\n";
 
     // 7) Build observations list in BAL format: each obs is (cam_idx,
     // point_idx, x, y)
@@ -334,20 +372,29 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < img_files.size(); ++i) {
         // rotation: Rs[i] is 3x3 rotation (world->cam). Convert to Rodrigues
         // (angle-axis)
-        Mat rvec;
-        Rodrigues(Rs[i], rvec);  // rotation vector (angle-axis)
-        Vec3d tvec(Ts[i].at<double>(0, 0), Ts[i].at<double>(1, 0),
-                   Ts[i].at<double>(2, 0));
+        // Convert OpenCV pose (X-right, Y-down) to BAL pose (X-left, Y-up)
+        Mat R_cv = Rs[i];
+        Mat t_cv = Ts[i];
+        Mat C = (Mat_<double>(3, 3) << -1, 0, 0, 0, -1, 0, 0, 0, 1);
+        Mat R_bal = C * R_cv * C;  // C * R * C^-1, but C = C^-1
+        Mat t_bal = C * t_cv;
+        Mat rvec_bal;
+        Rodrigues(R_bal, rvec_bal);  // rotation vector (angle-axis)
+
+        Vec3d tvec_bal(t_bal.at<double>(0, 0), t_bal.at<double>(1, 0),
+                       t_bal.at<double>(2, 0));
         double f_init = focal_px;
         double k1 = 0.0, k2 = 0.0;
-        ofs << rvec.at<double>(0, 0) << " " << rvec.at<double>(1, 0) << " "
-            << rvec.at<double>(2, 0) << " " << tvec[0] << " " << tvec[1] << " "
-            << tvec[2] << " " << f_init << " " << k1 << " " << k2 << "\n";
+
+        ofs << rvec_bal.at<double>(0, 0) << " " << rvec_bal.at<double>(1, 0)
+            << " " << rvec_bal.at<double>(2, 0) << " " << tvec_bal[0] << " "
+            << tvec_bal[1] << " " << tvec_bal[2] << " " << f_init << " " << k1
+            << " " << k2 << "\n";
     }
 
     // points (3 coords each)
     for (auto& P : points3d) {
-        ofs << P.x << " " << P.y << " " << P.z << "\n";
+        ofs << -P.x << " " << -P.y << " " << P.z << "\n";
     }
 
     ofs.close();

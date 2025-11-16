@@ -8,7 +8,7 @@
 #include "DatasetLoader.hpp"
 #include "Structs.hpp"
 
-// shit
+// shit - ?
 Eigen::Vector2d projection(const Camera& cam, const Point3D& p);
 
 struct BALReprojectionError {

@@ -2,7 +2,10 @@ data
 # =====================
 # CMake / C++ / Build
 # =====================
-
+data
+test_images
+src/make_bal
+src/vis
 # Build directories
 /build/
 /cmake-build-*/

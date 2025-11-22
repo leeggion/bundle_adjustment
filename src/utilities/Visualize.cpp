@@ -37,3 +37,30 @@ void visualize_reprojection(const std::vector<Camera>& cams,
     cv::imshow("Reprojection", img);
     cv::waitKey(0);
 }
+
+void visualize_optimized_reprojection(
+    const std::vector<std::array<double, 9>>& optimized_camera_params,
+    const std::vector<std::array<double, 3>>& optimized_point_params,
+    const std::vector<Observation>& obs, int cam_id) {
+    // 1. Преобразование optimized_camera_params в std::vector<Camera>
+    std::vector<Camera> cams_struct(optimized_camera_params.size());
+    for (size_t i = 0; i < optimized_camera_params.size(); ++i) {
+        // Заполняем структуру Camera (или CamStruct) из массива double
+        cams_struct[i].rotation =
+            Eigen::Vector3d(optimized_camera_params[i].data());
+        cams_struct[i].translation =
+            Eigen::Vector3d(optimized_camera_params[i].data() + 3);
+        cams_struct[i].f = optimized_camera_params[i][6];
+        cams_struct[i].k1 = optimized_camera_params[i][7];
+        cams_struct[i].k2 = optimized_camera_params[i][8];
+    }
+    // 2. Преобразование optimized_point_params в std::vector<Point3D>
+    std::vector<Point3D> points_struct(optimized_point_params.size());
+    for (size_t i = 0; i < optimized_point_params.size(); ++i) {
+        // Заполняем структуру Point3D (или PointStruct) из массива double
+        points_struct[i].pos =
+            Eigen::Vector3d(optimized_point_params[i].data());
+    }
+    // 3. Вызов оригинального визуализатора
+    visualize_reprojection(cams_struct, points_struct, obs, cam_id);
+}

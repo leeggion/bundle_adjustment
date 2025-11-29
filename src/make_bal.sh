@@ -1,7 +1,7 @@
 #!/bin/bash
 
-IMAGES="../test_images/test3"
-OUT="../data/test3.txt"
+IMAGES="../test_images/test6"
+OUT="../data/test6.txt"
 
 g++ -std=c++17 make_bal.cpp -o make_bal `pkg-config --cflags --libs opencv4`
 mkdir vis

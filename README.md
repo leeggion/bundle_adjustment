@@ -24,7 +24,7 @@ _temporary_
 ```
 sudo apt-get install libceres-dev
 ```
-Сборка: (прототип)
+Сборка:
 ```
 mkdir build && cd build
 cmake ..
@@ -32,6 +32,17 @@ cmake --build .
 ```
 Запуск:
 ```
-./bundle <path-to-dataset[BAL]
-# пример ./bundle ../data/ladybug.txt 
+./bundle <path-to-dataset[BAL]> <LM/GN> <[optional]num_iterations>
+# пример ./bundle ../data/ladybug.txt LM 200
 ```
+Пример для создания датасета (выполнения работы SfM до BA) также в наличии и представлен в папке `test_images/test6`
+```
+cd src
+./make_bal.sh
+```
+ИЛИ 
+```
+cd src
+python ./make_bal.py
+```
+Все остальные датасеты можно найти на сайте [Bundle Adjustment in the Large](https://grail.cs.washington.edu/projects/bal/)

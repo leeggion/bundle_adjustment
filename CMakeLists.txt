@@ -16,6 +16,7 @@ find_package(Ceres REQUIRED)
 # --- 2. Создаем исполняемый файл ---
 add_executable(bundle
     src/main.cpp
+    src/utilities/BundleAdjuster.cpp
     src/utilities/DatasetLoader.cpp
     src/utilities/math.cpp
     src/utilities/Visualize.cpp

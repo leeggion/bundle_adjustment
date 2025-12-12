@@ -678,3 +678,232 @@ void BundleAdjuster::SolveFullSystem(
     delta_c_norm = delta_c.norm();
     delta_p_norm = std::sqrt(total_delta_p_sq);
 }
+
+void BundleAdjuster::SolveFullSystemDirect(
+    double lambda, const std::vector<Eigen::Matrix<double, 9, 9>>& U_blocks,
+    const std::vector<Eigen::Matrix<double, 3, 3>>& V_blocks,
+    const std::vector<Eigen::Vector<double, 9>>& g_c_blocks,
+    const std::vector<Eigen::Vector<double, 3>>& g_p_blocks,
+    const std::vector<Eigen::Matrix<double, 9, 3>>& W_blocks,
+    Eigen::VectorXd& delta_c, std::vector<Eigen::Vector3d>& delta_p_blocks,
+    double& delta_c_norm, double& delta_p_norm) {
+    const int num_cam_params = 9 * num_cameras;
+    const int num_point_params = 3 * num_points;
+    const int total_params = num_cam_params + num_point_params;
+
+    // 1. Создаем полную матрицу Гессиана H и вектор градиента g
+    Eigen::MatrixXd H(total_params, total_params);
+    Eigen::VectorXd g(total_params);
+    H.setZero();
+    g.setZero();
+
+    // 2. Заполняем диагональные блоки U и g_c
+    for (size_t c = 0; c < num_cameras; ++c) {
+        int start_idx = static_cast<int>(c) * 9;
+        // Добавляем демпфирование Левенберга-Марквардта
+        Eigen::Matrix<double, 9, 9> U_damped = U_blocks[c];
+        U_damped.diagonal().array() += lambda;
+
+        H.block<9, 9>(start_idx, start_idx) = U_damped;
+        g.segment<9>(start_idx) = g_c_blocks[c];
+    }
+
+    // 3. Заполняем диагональные блоки V и g_p
+    for (size_t p = 0; p < num_points; ++p) {
+        int start_idx = num_cam_params + static_cast<int>(p) * 3;
+        // Добавляем демпфирование
+        Eigen::Matrix<double, 3, 3> V_damped = V_blocks[p];
+        V_damped.diagonal().array() += lambda;
+
+        H.block<3, 3>(start_idx, start_idx) = V_damped;
+        g.segment<3>(start_idx) = g_p_blocks[p];
+    }
+
+    // 4. Заполняем внедиагональные блоки W и W^T
+    for (size_t i = 0; i < obs.size(); ++i) {
+        const auto& o = obs[i];
+        int cam_start = static_cast<int>(o.cam_id) * 9;
+        int point_start = num_cam_params + static_cast<int>(o.point_id) * 3;
+
+        const auto& W = W_blocks[i];
+
+        // Верхний правый блок W (9x3)
+        H.block<9, 3>(cam_start, point_start) = W;
+        // Нижний левый блок W^T (3x9)
+        H.block<3, 9>(point_start, cam_start) = W.transpose();
+    }
+
+    // 5. Решаем систему H * delta = -g
+    Eigen::VectorXd rhs = -g;
+    Eigen::VectorXd delta(total_params);
+    delta.setZero();
+    // Используем LDLT разложение для симметричной матрицы
+    Eigen::LDLT<Eigen::MatrixXd> ldlt_solver(H);
+
+    // Проверка на положительную определенность
+    if (ldlt_solver.info() != Eigen::Success) {
+        std::cerr << "[WARNING] LDLT factorization failed. Trying LLT..."
+                  << std::endl;
+
+        // Пробуем LLT
+        Eigen::LLT<Eigen::MatrixXd> llt_solver(H);
+        if (llt_solver.info() != Eigen::Success) {
+            std::cerr << "[ERROR] LLT factorization also failed. Using "
+                         "identity damping..."
+                      << std::endl;
+
+            // Добавляем сильное демпфирование и пробуем снова
+            H += Eigen::MatrixXd::Identity(total_params, total_params) *
+                 lambda * 10.0;
+            Eigen::LLT<Eigen::MatrixXd> llt_solver2(H);
+            if (llt_solver2.info() == Eigen::Success) {
+                delta = llt_solver2.solve(rhs);
+            } else {
+                std::cerr << "[ERROR] Complete failure. Returning zero step."
+                          << std::endl;
+                delta = Eigen::VectorXd::Zero(total_params);
+            }
+        } else {
+            delta = llt_solver.solve(rhs);
+        }
+    } else {
+        delta = ldlt_solver.solve(rhs);
+    }
+
+    // 6. Разделяем решение на delta_c и delta_p
+    delta_c = delta.head(num_cam_params);
+    delta_p_blocks.resize(num_points);
+
+    for (size_t p = 0; p < num_points; ++p) {
+        int start_idx = num_cam_params + static_cast<int>(p) * 3;
+        delta_p_blocks[p] = delta.segment<3>(start_idx);
+    }
+
+    // 7. Вычисляем нормы
+    delta_c_norm = delta_c.norm();
+    delta_p_norm = 0.0;
+    for (const auto& dp : delta_p_blocks) {
+        delta_p_norm += dp.squaredNorm();
+    }
+    delta_p_norm = std::sqrt(delta_p_norm);
+}
+
+auto BundleAdjuster::SolveDirect(int max_iterations, double initial_lambda)
+    -> double {
+    SetupProblem();
+    double lambda = initial_lambda;
+    double v = 2.0;
+    double current_error = calculate_total_error();
+
+    std::cout << "=================================\n"
+              << "Direct (Full System) optimizer started\n"
+              << "\tCameras: " << this->num_cameras
+              << "\n\tPoints: " << this->num_points << "\n"
+              << "Initial Error: " << current_error << std::endl;
+
+    // Поблочные матрицы
+    std::vector<Eigen::Matrix<double, 9, 9>> U_blocks(num_cameras);
+    std::vector<Eigen::Matrix<double, 3, 3>> V_blocks(num_points);
+    std::vector<Eigen::Vector<double, 9>> g_c_blocks(num_cameras);
+    std::vector<Eigen::Vector<double, 3>> g_p_blocks(num_points);
+    std::vector<Eigen::Matrix<double, 9, 3>> W_blocks(num_observations);
+
+    auto start = std::chrono::system_clock::now();
+    for (int iter = 0; iter < max_iterations; ++iter) {
+        std::cout << "\n[ITERATION " << iter << "]" << std::endl;
+        std::cout << "Current Error: " << current_error << std::endl;
+        // 1) Построение гессиана и градиента
+        BuildHessianAndGradient(U_blocks, V_blocks, g_c_blocks, g_p_blocks,
+                                W_blocks);
+
+        bool step_accepted = false;
+        for (int lm_try = 0; lm_try < LM_TRIES; ++lm_try) {
+            std::cout << "  [LM Trial " << lm_try << "] Lambda: " << lambda
+                      << ", v: " << v << std::endl;
+
+            Eigen::VectorXd delta_c;
+            std::vector<Eigen::Vector3d> delta_p_blocks;
+            double delta_c_norm = 0.0;
+            double delta_p_norm = 0.0;
+            // 2) Решение полной системы напрямую
+            SolveFullSystemDirect(lambda, U_blocks, V_blocks, g_c_blocks,
+                                  g_p_blocks, W_blocks, delta_c, delta_p_blocks,
+                              delta_c_norm, delta_p_norm);
+
+            // Проверка корректности
+            if (delta_c.size() == 0) {
+                std::cout
+                    << "[ERROR] Direct solver returned empty delta_c. Aborting."
+                    << std::endl;
+                return current_error;
+            }
+            std::cout << "    | Step norms: ||Delta_c|| = " << delta_c_norm
+                      << ", ||Delta_p|| = " << delta_p_norm << std::endl;
+            // Проверка сходимости
+            if (delta_c_norm < 1e-8) {
+                std::cout << "[CONVERGENCE] Delta_c norm too small. Finishing."
+                          << std::endl;
+                return current_error;
+            }
+            // 3) Пробный шаг
+            std::vector<std::array<double, 9>> new_camera_params =
+                camera_params;
+            std::vector<std::array<double, 3>> new_point_params = point_params;
+            // Применяем delta_c с учетом маски
+            for (size_t c = 0; c < num_cameras; ++c) {
+                for (int j = 0; j < 9; ++j) {
+                    size_t idx = c * 9 + j;
+                    if (idx < (size_t)delta_c.size() && camera_param_mask[j]) {
+                        new_camera_params[c][j] +=
+                            delta_c(static_cast<int>(idx));
+                    }
+                }
+            }
+            // Применяем delta_p
+            for (size_t p = 0; p < num_points; ++p) {
+                if (p < delta_p_blocks.size()) {
+                    for (int j = 0; j < 3; ++j) {
+                        new_point_params[p][j] += delta_p_blocks[p][j];
+                    }
+                }
+            }
+            // 4) Считаем ошибку
+            double trial_error = calculate_total_error_for_params(
+                new_camera_params, new_point_params);
+            std::cout << "    | Trial Error: " << trial_error << std::endl;
+            // 5) LM
+            if (trial_error < current_error) {
+                // Step ACCEPTED
+                std::cout << "    | SUCCESS" << std::endl;
+
+                camera_params = std::move(new_camera_params);
+                point_params = std::move(new_point_params);
+                current_error = trial_error;
+                step_accepted = true;
+
+                lambda = std::max(lambda / 3.0, 1e-7);
+                v = 2.0;
+                break;
+            } else {
+                // Step REJECTED
+                std::cout << "    | FAILED" << std::endl;
+                lambda *= v;
+                v *= 2.0;
+                step_accepted = false;
+            }
+        }
+        if (!step_accepted) {
+            std::cout
+                << "[HALT] Direct method failed to find a valid step. Stopping."
+                << std::endl;
+            break;
+        }
+    }
+    auto end = std::chrono::system_clock::now();
+    std::cout << "Direct method time: "
+              << std::chrono::duration_cast<std::chrono::milliseconds>(end -
+                                                                       start)
+                     .count()
+              << " ms\n";
+    return current_error;
+}

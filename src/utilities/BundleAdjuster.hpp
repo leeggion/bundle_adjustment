@@ -81,9 +81,22 @@ class BundleAdjuster {
                 std::string out_points = "output_points.txt");
 
     // Вспомогательные API
-    void FreezeIntrinsics();     // фиксируем f,k1,k2
-    void UnfreezeIntrinsics();   // размораживаем
+    void FreezeIntrinsics();    // фиксируем f,k1,k2
+    void UnfreezeIntrinsics();  // размораживаем
     void FreezeEverythingExceptExtrinsics();
+
+    // Решение полной системы напрямую (без редукции Шура)
+    void SolveFullSystemDirect(
+        double lambda, const std::vector<Eigen::Matrix<double, 9, 9>>& U_blocks,
+        const std::vector<Eigen::Matrix<double, 3, 3>>& V_blocks,
+        const std::vector<Eigen::Vector<double, 9>>& g_c_blocks,
+        const std::vector<Eigen::Vector<double, 3>>& g_p_blocks,
+        const std::vector<Eigen::Matrix<double, 9, 3>>& W_blocks,
+        Eigen::VectorXd& delta_c, std::vector<Eigen::Vector3d>& delta_p_blocks,
+        double& delta_c_norm, double& delta_p_norm);
+
+    auto SolveDirect(int max_iterations = 50, double initial_lambda = 1e-3)
+        -> double;
 
    private:
     const std::vector<Observation>& obs;

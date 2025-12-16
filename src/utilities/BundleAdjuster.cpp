@@ -183,7 +183,7 @@ auto BundleAdjuster::SolveLM(int max_iterations, double initial_lambda)
                                                                        start)
                      .count()
               << " ms\n";
-
+    this->Export();
     return current_error;
 }
 
@@ -340,6 +340,7 @@ auto BundleAdjuster::SolveGN(int max_iterations) -> double {
                                                                        start)
                      .count()
               << " ms\n";
+    this->Export();
     return current_error;
 }
 
@@ -828,7 +829,7 @@ auto BundleAdjuster::SolveDirect(int max_iterations, double initial_lambda)
             // 2) Решение полной системы напрямую
             SolveFullSystemDirect(lambda, U_blocks, V_blocks, g_c_blocks,
                                   g_p_blocks, W_blocks, delta_c, delta_p_blocks,
-                              delta_c_norm, delta_p_norm);
+                                  delta_c_norm, delta_p_norm);
 
             // Проверка корректности
             if (delta_c.size() == 0) {

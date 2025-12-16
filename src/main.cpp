@@ -72,8 +72,10 @@ int main(int argc, char* argv[]) {
     double final_error = INFINITY;
     if (std::string(argv[2]) == "LM") {
         final_error = adj.SolveLM(max_iter_size / 2);
-    } else {
+    } else if (std::string(argv[2]) == "GN") {
         final_error = adj.SolveGN(max_iter_size / 2);
+    } else {
+        final_error = adj.SolveDirect(max_iter_size / 2);
     }
 
     // --- Этап 2: Фиксация intrinsics
@@ -81,10 +83,13 @@ int main(int argc, char* argv[]) {
     std::cout << "STAGE 2: Refinement BA (freeze intrinsics)\n";
     adj.FreezeIntrinsics();
 
-    if (std::string(argv[2]) == "LM")
+    if (std::string(argv[2]) == "LM") {
         final_error = adj.SolveLM(max_iter_size / 2);
-    else
+    } else if (std::string(argv[2]) == "GN") {
         final_error = adj.SolveGN(max_iter_size / 2);
+    } else {
+        final_error = adj.SolveDirect(max_iter_size / 2);
+    }
 
     std::cout << "Optimization finished! Final Error: " << final_error
               << std::endl;

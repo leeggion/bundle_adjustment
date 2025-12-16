@@ -27,8 +27,8 @@ struct BALReprojectionError {
 
         Pc += Eigen::Matrix<T, 3, 1>(camera[3], camera[4], camera[5]);
 
-        T x = Pc[0] / Pc[2];
-        T y = Pc[1] / Pc[2];
+        T x = -Pc[0] / Pc[2];
+        T y = -Pc[1] / Pc[2];
         T r2 = x * x + y * y;
         T radial = T(1.0) + camera[7] * r2 + camera[8] * r2 * r2;
         T u = camera[6] * radial * x;

@@ -1,4 +1,5 @@
 # Bundle Adjustment на C++
+![Demo](pr.png)
 
 ## **Цель:** 
 
@@ -48,4 +49,5 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install opencv-python numpy Pillow
 ```
+
 
